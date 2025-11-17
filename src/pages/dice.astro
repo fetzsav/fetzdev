@@ -1,0 +1,108 @@
+---
+import PageLayout from '../layouts/BaseLayout.astro'
+import Section from '../components/Section.astro'
+import Card from '../components/Card.astro'
+import Label from '../components/Label.astro'
+import DicePlayground from '@/components/DicePlayground.astro'
+import RepoViewer from '@/components/RepoViewer'
+
+// Optional: small helper items for the header badges
+const links = [
+  { href: 'https://github.com/fetzsav/dice', label: 'GitHub' },
+  { href: '/dfaces_1/1.png', label: 'Preset 1' },
+  { href: '/dfaces_2/1.png', label: 'Preset 2' }
+]
+---
+
+<PageLayout meta={{ title: 'Dice Generator' }}>
+  <RepoViewer client:load />
+  <div class="flex w-full flex-col gap-y-10">
+    <!-- Hero / Title -->
+    <section class="flex flex-col items-center gap-y-4">
+      <h1 class="text-3xl font-bold">Dice Image Generator (WASM)</h1>
+      <p class="max-w-2xl text-center text-muted-foreground">
+        Turn any image into a mosaic of dice faces. Runs entirely in your browser via WebAssembly. Built using Rust.
+        Choose a preset face set, or upload your own six PNGs (1–6). No upload to a server.
+      </p>
+
+      <div class="flex flex-wrap justify-center gap-3">
+        {links.map((l) => (
+          <Label title={l.label} as="a" href={l.href} target="_blank" />
+        ))}
+      </div>
+    </section>
+
+    <!-- Quick Tips -->
+    <Section title="How it works">
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <Card
+          as="div"
+          heading="1) Pick an image"
+          subheading="PNG/JPG"
+          altText="Pick image"
+          imageClass="h-10 w-auto"
+        >
+          <ul class="ml-4 list-disc text-muted-foreground">
+            <li>Images never leave your browser.</li>
+            <li>Large images will be fit to your canvas size.</li>
+          </ul>
+        </Card>
+
+        <Card
+          as="div"
+          heading="2) Choose dice faces"
+          subheading="Preset or custom"
+          altText="Faces"
+          imageClass="h-10 w-auto"
+        >
+          <ul class="ml-4 list-disc text-muted-foreground">
+            <li>
+              Use <span class="font-mono rounded bg-muted px-1">dfaces_1</span> or
+              <span class="font-mono rounded bg-muted px-1"> dfaces_2</span>, or upload 6 PNGs.
+            </li>
+            <li>Transparent PNGs give the cleanest results.</li>
+          </ul>
+        </Card>
+
+        <Card
+          as="div"
+          heading="3) Tweak & generate"
+          subheading="All client-side"
+          altText="Generate"
+          imageClass="h-10 w-auto"
+        >
+          <ul class="ml-4 list-disc text-muted-foreground">
+            <li>Default dice size: <span class="font-mono rounded bg-muted px-1">12px</span>.</li>
+            <li>Default canvas: <span class="font-mono rounded bg-muted px-1">1024×1024</span>.</li>
+            <li>Download the PNG when done.</li>
+          </ul>
+        </Card>
+      </div>
+    </Section>
+
+    <!-- The actual playground -->
+    <Section title="Playground">
+      <DicePlayground />
+    </Section>
+
+    <!-- Notes
+    <Section title="Notes">
+      <ul class="ml-4 list-disc text-muted-foreground">
+        <li>
+          WASM bundle expected at
+          <span class="font-mono rounded bg-muted px-1">public/wasm/dice-wasm/</span>:
+          <span class="font-mono rounded bg-muted px-1">dice_wasm.js</span>,
+          <span class="font-mono rounded bg-muted px-1">dice_wasm_bg.wasm</span>.
+        </li>
+        <li>
+          Presets expected at
+          <span class="font-mono rounded bg-muted px-1">public/dfaces_1/1.png..6.png</span> and
+          <span class="font-mono rounded bg-muted px-1">public/dfaces_2/1.png..6.png</span>.
+        </li>
+        <li>
+          If you deploy under a subpath, the page auto-detects the base URL for loading assets.
+        </li>
+      </ul>
+    </Section> -->
+  </div>
+</PageLayout>

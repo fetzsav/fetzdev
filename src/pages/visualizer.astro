@@ -1,0 +1,33 @@
+---
+import PageLayout from '../layouts/BaseLayout.astro';
+---
+
+<PageLayout meta={{ title: 'Music Visualizer' }}>
+  <section style="display:grid; gap:1rem; place-items:center; padding:1rem;">
+    <audio id="music" controls crossorigin="anonymous" src="/audio/track.mp3"></audio>
+
+    <!-- The canvas miniquad expects -->
+    <div id="mq-root" style="width:100%; max-width:1200px; aspect-ratio:16/9;">
+      <canvas id="glcanvas" tabindex="1" style="width:100%; height:100%; display:block;"></canvas>
+    </div>
+  </section>
+
+  <style>
+    #mq-root, #glcanvas { width: 100%; height: 100%; }
+    #glcanvas {
+      position: relative;
+      z-index: 1;
+      pointer-events: none; /* change to auto if you want clicks on canvas */
+      outline: none;
+    }
+  </style>
+
+  <!-- 1) Miniquad WebGL shim: defines init_webgl & friends on window/globalThis -->
+  <script src="/mq-visualizer/mq_js_bundle.js" is:inline></script>
+
+  <!-- 2) Polyfills for any missing env functions (e.g., setup_canvas_size) -->
+  <script src="/mq-visualizer/mq_polyfills.js" is:inline></script>
+
+  <!-- 3) Your boot module; it imports the patched glue from src/ and runs init() -->
+  <script type="module" src="/src/lib/mqvis/loader.js" is:inline></script>
+</PageLayout>

@@ -1,0 +1,15 @@
+{
+  "name": "dice-wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "dice_wasm_bg.wasm",
+    "dice_wasm.js",
+    "dice_wasm.d.ts"
+  ],
+  "main": "dice_wasm.js",
+  "types": "dice_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

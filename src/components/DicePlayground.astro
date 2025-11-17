@@ -1,0 +1,310 @@
+---
+/**
+ * Component: DicePlayground.astro
+ * Usage: <DicePlayground />
+ *
+ * Requires files in /public:
+ *   /wasm/dice-wasm/dice_wasm.js
+ *   /wasm/dice-wasm/dice_wasm_bg.wasm
+ *   /dfaces_1/1.png ... 6.png
+ *   /dfaces_2/1.png ... 6.png
+ */
+---
+
+<section class="mx-auto max-w-4xl space-y-6">
+  <h2 class="text-2xl font-semibold text-foreground">Dice Image Generator (WASM)</h2>
+
+  <!-- Source image -->
+  <div class="space-y-2">
+    <label class="block text-sm font-medium text-foreground">Source image (PNG/JPG/HEIC)</label>
+    <input
+      id="src-input"
+      type="file"
+      accept="image/*"
+      class="block w-full cursor-pointer rounded border bg-background p-2 font-sans text-sm text-foreground placeholder:text-muted-foreground"
+    />
+  </div>
+
+  <!-- Face set mode -->
+  <fieldset class="space-y-2">
+    <legend class="text-sm font-medium text-foreground">Dice faces</legend>
+    <div class="flex flex-wrap gap-4">
+      <label class="inline-flex items-center gap-2 text-foreground font-sans text-sm">
+        <input type="radio" name="faces-mode" value="preset1" checked />
+        <span>Preset 1 (public/dfaces_1)</span>
+      </label>
+      <label class="inline-flex items-center gap-2 text-foreground font-sans text-sm">
+        <input type="radio" name="faces-mode" value="preset2" />
+        <span>Preset 2 (public/dfaces_2)</span>
+      </label>
+      <label class="inline-flex items-center gap-2 text-foreground font-sans text-sm">
+        <input type="radio" name="faces-mode" value="upload" />
+        <span>Upload 6 faces</span>
+      </label>
+    </div>
+
+    <!-- Upload grid (hidden unless "upload" is selected) -->
+    <div id="upload-grid" class="hidden grid grid-cols-2 gap-3 rounded border p-3 md:grid-cols-3">
+      {Array.from({ length: 6 }, (_, i) => i + 1).map((n) => (
+        <div class="space-y-1" data-face={n}>
+          <label class="block text-xs font-medium text-foreground font-sans">Face {n}</label>
+          <input
+            type="file"
+            class="dice-file block w-full cursor-pointer rounded border bg-background p-2 font-sans text-sm text-foreground placeholder:text-muted-foreground"
+            accept="image/*"
+          />
+        </div>
+      ))}
+      <p class="col-span-full text-xs font-sans text-muted-foreground">
+        Tip: faces should be square PNGs with transparent background for best results.
+      </p>
+    </div>
+  </fieldset>
+
+  <!-- Options -->
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <div class="space-y-2 rounded border p-3">
+      <label class="block text-sm font-medium text-foreground">Dice size (px)</label>
+      <input
+        id="dice-size"
+        type="number"
+        min="8"
+        step="1"
+        value="12"
+        class="w-full rounded border bg-background p-2 font-sans text-sm text-foreground placeholder:text-muted-foreground"
+      />
+      <div class="mt-2 flex flex-wrap items-center gap-3 text-foreground">
+        <label class="inline-flex items-center gap-2 font-sans text-sm">
+          <input id="invert-input" type="checkbox" />
+          <span>Invert source</span>
+        </label>
+        <label class="inline-flex items-center gap-2 font-sans text-sm">
+          <input id="invert-dice" type="checkbox" checked />
+          <span>Invert faces</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="space-y-2 rounded border p-3">
+      <label class="block text-sm font-medium text-foreground">Intensity preset</label>
+      <select
+        id="preset"
+        class="w-full rounded border bg-background p-2 font-sans text-sm text-foreground"
+      >
+        <option value="Default">Default</option>
+        <option value="HighContrast">HighContrast</option>
+        <option value="LowContrast">LowContrast</option>
+        <option value="Bright">Bright</option>
+        <option value="Dark">Dark</option>
+      </select>
+
+      <div class="mt-3 grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-foreground font-sans">Output width</label>
+          <input
+            id="out-w"
+            type="number"
+            min="1"
+            value="1024"
+            class="w-full rounded border bg-background p-2 font-sans text-sm text-foreground placeholder:text-muted-foreground"
+            placeholder="e.g. 1024"
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-foreground font-sans">Output height</label>
+          <input
+            id="out-h"
+            type="number"
+            min="1"
+            value="1024"
+            class="w-full rounded border bg-background p-2 font-sans text-sm text-foreground placeholder:text-muted-foreground"
+            placeholder="e.g. 1024"
+          />
+        </div>
+      </div>
+
+      <label class="mt-2 inline-flex items-center gap-2 text-foreground font-sans text-sm">
+        <input id="add-debug" type="checkbox" />
+        <span>Add debug banner</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="flex items-center gap-4">
+    <button
+      id="run"
+      class="rounded bg-foreground px-4 py-2 font-sans text-sm text-background hover:opacity-90"
+    >
+      Generate
+    </button>
+    <span id="status" class="font-sans text-sm text-muted-foreground"></span>
+  </div>
+
+  <!-- Output -->
+  <div class="space-y-3">
+    <img id="preview" class="max-h-[70vh] w-auto rounded border" alt="Output preview" />
+    <a
+      id="download"
+      download="dice_output.png"
+      class="hidden inline-block rounded border px-3 py-2 font-sans text-sm text-foreground hover:bg-accent"
+    >
+      Download PNG
+    </a>
+  </div>
+</section>
+
+<script type="module">
+  (async () => {
+    // Use absolute root paths for assets in /public
+    const ROOT = '/';
+    const WASM_BASE = `${ROOT}wasm/dice-wasm/`;
+
+    // Load ESM shim and init WASM using raw bytes (Safari-friendly)
+    const wasmMod = await import(`${WASM_BASE}dice_wasm.js`);
+    const { default: init, process_dice_image, DiceOptions, IntensityPreset } = wasmMod;
+    const wasmResp = await fetch(`${WASM_BASE}dice_wasm_bg.wasm`, { cache: 'no-store' });
+    if (!wasmResp.ok) {
+      console.error('Failed to load WASM:', wasmResp.status, wasmResp.statusText);
+      return;
+    }
+    const wasmBytes = await wasmResp.arrayBuffer();
+    await init(wasmBytes);
+
+    // DOM helpers
+    const $  = (s) => document.querySelector(s);
+    const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+    // Refs
+    const srcInput    = $('#src-input');
+    const invertInput = $('#invert-input');
+    const invertDice  = $('#invert-dice');
+    const diceSize    = $('#dice-size');
+    const presetSel   = $('#preset');
+    const outW        = $('#out-w');
+    const outH        = $('#out-h');
+    const addDebug    = $('#add-debug');
+    const runBtn      = $('#run');
+    const statusEl    = $('#status');
+    const imgOut      = $('#preview');
+    const dlLink      = $('#download');
+
+    const uploadGrid  = $('#upload-grid');
+    const diceInputs  = $$('.dice-file');
+    const radios      = $$('input[name="faces-mode"]');
+
+    function getFacesMode() {
+      const r = radios.find((r) => r.checked);
+      return r ? r.value : 'preset1';
+    }
+    function syncUploadState() {
+      uploadGrid.classList.toggle('hidden', getFacesMode() !== 'upload');
+    }
+    radios.forEach((r) => r.addEventListener('change', syncUploadState));
+    syncUploadState();
+
+    function presetToEnum(name) {
+      return IntensityPreset[name] ?? IntensityPreset.Default;
+    }
+
+    // Normalize any image (incl. HEIC) to PNG via canvas (fixes iOS Safari uploads)
+    async function blobToImage(blob) {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = url;
+      try { await img.decode().catch(() => {}); } finally { /* keep URL until draw */ }
+      return img;
+    }
+    async function fileToPngBytes(file) {
+      const img = await blobToImage(file);
+      const canvas = document.createElement('canvas');
+      canvas.width  = img.naturalWidth  || img.width  || 1;
+      canvas.height = img.naturalHeight || img.height || 1;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(img, 0, 0);
+      const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'));
+      if (!blob) throw new Error('Canvas PNG encoding failed.');
+      return new Uint8Array(await blob.arrayBuffer());
+    }
+
+    async function fetchToU8(url) {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
+      return new Uint8Array(await res.arrayBuffer());
+    }
+    async function loadPresetSet(folder) {
+      const urls = [1,2,3,4,5,6].map(n => `${ROOT}${folder}/${n}.png`);
+      return Promise.all(urls.map(u => fetchToU8(u)));
+    }
+
+    // Default "invert faces" ON in UI as well
+    invertDice.checked = true;
+
+    runBtn.addEventListener('click', async () => {
+      try {
+        statusEl.textContent = 'Reading files…';
+
+        if (!srcInput.files?.[0]) {
+          alert('Please pick a source image.');
+          return;
+        }
+
+        // Normalize source to PNG (handles HEIC on iOS)
+        const inputBytes = await fileToPngBytes(srcInput.files[0]);
+
+        // Faces
+        let facesU8;
+        const mode = getFacesMode();
+        if (mode === 'preset1') {
+          facesU8 = await loadPresetSet('dfaces_1');
+        } else if (mode === 'preset2') {
+          facesU8 = await loadPresetSet('dfaces_2');
+        } else {
+          if (diceInputs.some(inp => !inp.files?.[0])) {
+            alert('Please upload all 6 dice face images.');
+            return;
+          }
+          facesU8 = [];
+          for (const inp of diceInputs) facesU8.push(await fileToPngBytes(inp.files[0]));
+        }
+
+        // Options (defaults already present in inputs)
+        const size = Math.max(8, Number(diceSize.value || 12));
+        const optW = outW.value ? Number(outW.value) : undefined;
+        const optH = outH.value ? Number(outH.value) : undefined;
+
+        const opts = new DiceOptions(
+          size,
+          Boolean(invertInput.checked),
+          Boolean(invertDice.checked),
+          presetToEnum(presetSel.value),
+          optW,
+          optH,
+          Boolean(addDebug.checked),
+        );
+
+        statusEl.textContent = 'Processing (WASM)…';
+
+        // dice_pngs must be a plain JS Array of 6 Uint8Arrays
+        const jsArray = new window.Array(...facesU8);
+        const outBytes = process_dice_image(inputBytes, jsArray, opts);
+
+        const blob = new Blob([outBytes], { type: 'image/png' });
+        const url = URL.createObjectURL(blob);
+        imgOut.src = url;
+        dlLink.href = url;
+        dlLink.classList.remove('hidden');
+        statusEl.textContent = 'Done.';
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = 'Error: ' + (err?.message ?? String(err));
+      }
+    });
+
+    if (!('WebAssembly' in window)) {
+      statusEl.textContent = 'WebAssembly is not supported in this browser.';
+      runBtn.disabled = true;
+    }
+  })();
+</script>
